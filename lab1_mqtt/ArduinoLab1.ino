@@ -40,49 +40,22 @@ void setup() {
   Serial.begin(9600);
   Serial.println("Starter opp...");
 
-  // Initialiser DHT11-sensoren
-  Serial.println("Initialiserer DHT11-sensor...");
-
-  // Koble til WiFi
+  initializeDHT11();
   connectToWiFi();
-
-  // Koble til MQTT-broker
   connectToMQTT();
-
-  // Sett opp MQTT-abonnement på "Lab1/#" for å motta meldinger fra alle underliggende topics
-  mqtt.onMessage(handleMQTTMessage);
-  mqtt.subscribe(SUBSCRIBE_TOPIC); // Abonnerer på alle topics under "Lab1"
-
-  // Start RTC og sjekk om det er tilkoblet
-  if (!rtcClock.begin()) {
-    Serial.println("RTC ikke initialisert eller ikke tilkoblet!");
-    while (1); // Stopp hvis RTC ikke fungerer
-  }
-
-  // Still inn tid hvis nødvendig (valgfritt, kun første gang)
-  // RTCTime t(28, Month::JANUARY, 2025, 15, 30, 0, DayOfWeek::TUESDAY, SaveLight::SAVING_TIME_INACTIVE);
-  // rtcClock.setTime(t); // Sett dato og klokkeslett manuelt
+  setupRTC();
+  setupMQTTSubscription();
 }
 
 void loop() {
-  // MQTT-loop for å håndtere innkommende meldinger
   mqtt.loop();
+  handleSensorMeasurements();
+  handleMQTTPublishing();
+}
 
-  // Utfør måling av temperatur og luftfuktighet hver 3. sekund
-  if (millis() - lastMeasureTime > MEASURE_INTERVAL) {
-    measureSensorData();
-    lastMeasureTime = millis();
-  }
-
-  // Publiser sensordata til MQTT hver 5. sekund
-  if (millis() - lastPublishTime > PUBLISH_INTERVAL) {
-    if (!mqtt.connected()) {
-      Serial.println("MQTT-forbindelse mistet, prøver å koble til...");
-      connectToMQTT(); // Forsøk å gjenopprette MQTT-tilkoblingen
-    }
-    publishSensorData();
-    lastPublishTime = millis();
-  }
+// Initialiser DHT11-sensoren
+void initializeDHT11() {
+  Serial.println("Initialiserer DHT11-sensor...");
 }
 
 // Funksjon for å koble til WiFi
@@ -102,7 +75,6 @@ void connectToMQTT() {
   Serial.println("Kobler til MQTT...");
   mqtt.begin(MQTT_BROKER_ADDRESS, MQTT_PORT, network);
 
-  // Prøv å koble til MQTT til vi lykkes
   while (!mqtt.connect(MQTT_CLIENT_ID)) {
     Serial.print(".");
     delay(1000);
@@ -114,11 +86,43 @@ void connectToMQTT() {
   Serial.println(MQTT_PORT);
 }
 
+// Funksjon for å sette opp RTC
+void setupRTC() {
+  if (!rtcClock.begin()) {
+    Serial.println("RTC ikke initialisert eller ikke tilkoblet!");
+    while (1); // Stopp hvis RTC ikke fungerer
+  }
+}
+
+// Funksjon for å sette opp MQTT-abonnement
+void setupMQTTSubscription() {
+  mqtt.onMessage(handleMQTTMessage);
+  mqtt.subscribe(SUBSCRIBE_TOPIC);
+}
+
+// Funksjon for å håndtere sensoravlesninger
+void handleSensorMeasurements() {
+  if (millis() - lastMeasureTime > MEASURE_INTERVAL) {
+    measureSensorData();
+    lastMeasureTime = millis();
+  }
+}
+
+// Funksjon for å håndtere MQTT-publisering
+void handleMQTTPublishing() {
+  if (millis() - lastPublishTime > PUBLISH_INTERVAL) {
+    if (!mqtt.connected()) {
+      Serial.println("MQTT-forbindelse mistet, prøver å koble til...");
+      connectToMQTT();
+    }
+    publishSensorData();
+    lastPublishTime = millis();
+  }
+}
+
 // Funksjon for å lese data fra DHT11-sensoren
 void measureSensorData() {
-  // Les temperatur og luftfuktighet fra DHT11
   int result = dht11.readTemperatureHumidity(temperature, humidity);
-
   if (result != 0) {
     Serial.print("Feil under sensorlesing: ");
     Serial.println(DHT11::getErrorString(result));
@@ -140,17 +144,14 @@ String getFormattedTime() {
 
 // Funksjon for å publisere sensordata til MQTT
 void publishSensorData() {
-  // Opprett et JSON-objekt for MQTT-melding
   StaticJsonDocument<200> jsonDoc;
-  jsonDoc["time"] = getFormattedTime();   // Legg til faktisk klokkeslett fra RTC
-  jsonDoc["temperature"] = temperature;  // Legg til temperatur
-  jsonDoc["humidity"] = humidity;        // Legg til luftfuktighet
+  jsonDoc["time"] = getFormattedTime();
+  jsonDoc["temperature"] = temperature;
+  jsonDoc["humidity"] = humidity;
 
-  // Serialiser JSON-objektet til en buffer
   char jsonBuffer[512];
   serializeJson(jsonDoc, jsonBuffer);
 
-  // Publiser JSON-data til MQTT
   if (mqtt.publish(PUBLISH_TOPIC, jsonBuffer)) {
     //Serial.println("Publisering vellykket!");
     //Serial.print("Publisert topic: ");
@@ -164,12 +165,8 @@ void publishSensorData() {
 
 // Funksjon for å håndtere innkommende MQTT-meldinger
 void handleMQTTMessage(String &topic, String &payload) {
-  char logBuffer[512]; // Midlertidig buffer for meldingen
-
-  // Formatér meldingen til én streng
+  char logBuffer[512];
   snprintf(logBuffer, sizeof(logBuffer), "Topic: %s Payload: %s", 
            topic.c_str(), payload.c_str());
-
-  // Skriv ut hele meldingen
   Serial.println(logBuffer);
 }
