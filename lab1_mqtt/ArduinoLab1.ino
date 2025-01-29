@@ -93,8 +93,9 @@ void setupRTC() {
     while (1); // Stopp hvis RTC ikke fungerer
   }
   // Still inn tid hvis nødvendig (kun første gang, kommenter ut etterpå)
-    RTCTime t(29, Month::JANUARY, 2025, 8, 29, 0, DayOfWeek::TUESDAY, SaveLight::SAVING_TIME_INACTIVE);
+    RTCTime t(29, Month::JANUARY, 2025, 9, 43, 0, DayOfWeek::TUESDAY, SaveLight::SAVING_TIME_INACTIVE);
     rtcClock.setTime(t); // Sett dato og klokkeslett manuelt
+    Serial.println("RTC initialisert");
 }
 
 // Funksjon for å sette opp MQTT-abonnement
@@ -156,11 +157,12 @@ void publishSensorData() {
   serializeJson(jsonDoc, jsonBuffer);
 
   if (mqtt.publish(PUBLISH_TOPIC, jsonBuffer)) {
-    Serial.println("Publisering vellykket!");
+    //Serial.println("Publisering vellykket!");
     //Serial.print("Publisert topic: ");
     //Serial.println(PUBLISH_TOPIC);
     //Serial.print("Payload: ");
-    Serial.println(jsonBuffer);
+    //Serial.println(jsonBuffer);
+    delay(100);
   } else {
     Serial.println("Feil under publisering til MQTT!");
   }
