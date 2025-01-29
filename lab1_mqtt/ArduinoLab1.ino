@@ -9,7 +9,7 @@ const char WIFI_SSID[] = "IoTstream";
 const char WIFI_PASSWORD[] = "ADA528IoT";
 
 // MQTT-informasjon
-const char MQTT_BROKER_ADDRESS[] = "192.168.1.100";
+const char MQTT_BROKER_ADDRESS[] = "192.168.1.103";
 const int MQTT_PORT = 1883;
 const char MQTT_CLIENT_ID[] = "Gruppe2";
 const char PUBLISH_TOPIC[] = "Lab1/Inngang/Bakre_";
@@ -92,6 +92,9 @@ void setupRTC() {
     Serial.println("RTC ikke initialisert eller ikke tilkoblet!");
     while (1); // Stopp hvis RTC ikke fungerer
   }
+  // Still inn tid hvis nødvendig (kun første gang, kommenter ut etterpå)
+    RTCTime t(29, Month::JANUARY, 2025, 8, 29, 0, DayOfWeek::TUESDAY, SaveLight::SAVING_TIME_INACTIVE);
+    rtcClock.setTime(t); // Sett dato og klokkeslett manuelt
 }
 
 // Funksjon for å sette opp MQTT-abonnement
@@ -153,11 +156,11 @@ void publishSensorData() {
   serializeJson(jsonDoc, jsonBuffer);
 
   if (mqtt.publish(PUBLISH_TOPIC, jsonBuffer)) {
-    //Serial.println("Publisering vellykket!");
+    Serial.println("Publisering vellykket!");
     //Serial.print("Publisert topic: ");
     //Serial.println(PUBLISH_TOPIC);
     //Serial.print("Payload: ");
-    //Serial.println(jsonBuffer);
+    Serial.println(jsonBuffer);
   } else {
     Serial.println("Feil under publisering til MQTT!");
   }
